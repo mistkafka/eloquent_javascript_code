@@ -1,11 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meat charset="utf-8" />
+    <meta charset="utf-8" />
     <title>ch13-playground</title>
+    <style>
+      #div1 {
+      background: orange;
+      height: 20px;
+      width: 60px;
+      }
+    </style>
+    <script src="../node_modules/babel-core/browser.js"></script>
   </head>
   <body>
     <p id="p1"><button id="btn1">click me</button></p>
+    <a id="link1" href="http://www.douban.com">Douban</a>
+    <div id="div1">resize bar</div>
   </body>
-  <script src="t.js"></script>
+  <script type="text/babel" src="t.js"></script>
 </html>
