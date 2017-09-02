@@ -1,0 +1,23 @@
+{
+  "name": "electronic-life",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "mistkafka",
+  "license": "MIT",
+  "scripts": {
+    "run": "node-babel index.js",
+    "test": "mocha --compilers js:babel-register",
+    "lint": "eslint src",
+    "precommit": "yarn lint && yarn test"
+  },
+  "dependencies": {
+    "mocha": "^3.5.0"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-env": "^1.6.0",
+    "babel-register": "^6.26.0",
+    "chai": "^4.1.2",
+    "eslint": "^4.6.0"
+  }
+}

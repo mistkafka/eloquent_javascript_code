@@ -1,3 +1,4 @@
 *.DS_Store
 .idea
 ch14-project-a-platform-game/node_modules
+ch07-project-electronic-life_v2/node_modules
