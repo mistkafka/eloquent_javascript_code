@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import Vector from '../src/vector'
+import Vector from '../../../src/models/Vector'
 
 describe('class Vector', () => {
   describe('# constructor(x, y)', () => {

@@ -1,6 +1,6 @@
 import { expect } from 'chai'
-import Grid from '../src/Grid'
-import Vector from '../src/Vector'
+import Grid from '../../../src/models/Grid'
+import Vector from '../../../src/models/Vector'
 
 describe('class Grid', () => {
   const width = 3
