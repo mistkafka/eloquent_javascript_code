@@ -2,7 +2,7 @@ import { expect } from 'chai'
 import Vector from '../src/vector'
 
 describe('class Vector', () => {
-  describe('# constructor', () => {
+  describe('# constructor(x, y)', () => {
     it('should normal get instance', () => {
       let v = new Vector(1, 2)
 
