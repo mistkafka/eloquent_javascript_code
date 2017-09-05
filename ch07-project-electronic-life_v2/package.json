@@ -7,6 +7,7 @@
   "scripts": {
     "run": "node-babel index.js",
     "test": "mocha --compilers js:babel-register --recursive",
+    "test-single": "mocha debug --compilers js:babel-register",
     "lint": "eslint src test",
     "precommit": "yarn lint && yarn test"
   },

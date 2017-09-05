@@ -18,5 +18,5 @@ export default {
 
   randomDirection: function() {
     return this.randomElements(this.directionNames)
-  }
+  },
 }

@@ -2,7 +2,6 @@ const _width = Symbol('width')
 const _height = Symbol('height')
 const _spaces = Symbol('spaces')
 
-
 class Grid {
   constructor (width, height) {
     this[_width] = width
@@ -24,11 +23,13 @@ class Grid {
   }
 
   get (vector) {
-    return this[_spaces][vector.x + this[_height] * vector.y]
+    let index = vector.x + this[_width] * vector.y;
+    return this[_spaces][index]
   }
 
   set (vector, value) {
-    this[_spaces][vector.x + this[_height] * vector.y] = value
+    let index = vector.x + this[_width] * vector.y
+    this[_spaces][index] = value
   }
 
   get [Symbol.toStringTag] () {

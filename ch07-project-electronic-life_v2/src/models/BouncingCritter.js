@@ -1,7 +1,10 @@
 import Utils from '../common/utils'
+import BaseElement from './BaseElement'
 
-class BouncingCritter {
-  constructor () {
+class BouncingCritter extends BaseElement {
+  constructor (legendChar) {
+    super(legendChar)
+
     this.direction = Utils.randomDirection()
   }
 
