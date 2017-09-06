@@ -1,19 +1,10 @@
 import View from '../../../src/models/View'
-import World from '../../../src/models/World'
-import Vector from '../../../src/models/Vector'
-import Wall from '../../../src/models/Wall'
-import Space from '../../../src/models/Space'
 import BouncingCritter from '../../../src/models/BouncingCritter'
 import Utils from '../../../src/common/utils'
 import { expect } from 'chai'
+import td from 'testdouble'
 
 let ins = new BouncingCritter('^')
-
-const legend = {
-  '#': Wall,
-  'o': BouncingCritter,
-  ' ': Space,
-}
 
 describe('class BouncingCritter', () => {
   describe('#constructor (legendChar)', () => {
@@ -28,35 +19,26 @@ describe('class BouncingCritter', () => {
 
   describe('#act(view)', () => {
     it('should return "s" when around is not space', () => {
-      let worldMap = [
-        '###',
-        '#o#',
-        '###',
-      ]
-      let world = new World(worldMap, legend)
-      let bouncingCritter = world.grid.get(new Vector(1, 1))
-      let view = new View(world, new Vector(1, 1))
+      let FakeView = td.constructor(View)
+      td.when(FakeView.prototype.look(ins.direction)).thenReturn('#')
+      td.when(FakeView.prototype.find(' ')).thenReturn(null)
 
-      let oldDirection = bouncingCritter.direction
-      let actObj = bouncingCritter.act(view)
+      let view = new FakeView('Whatever', 'Whatever')
+
+      let oldDirection = ins.direction
+      let actObj = ins.act(view)
       expect(actObj.type).to.be.equal('move')
       expect(actObj.direction).to.be.equal('s')
     })
 
     it('should return current direction when front is space', () => {
-      let worldMap = [
-        '#####',
-        '#   #',
-        '# o #',
-        '#   #',
-        '#####',
-      ]
-      let world = new World(worldMap, legend)
-      let bouncingCritter = world.grid.get(new Vector(2, 2))
-      let view = new View(world, new Vector(2, 2))
+      let FakeView = td.constructor(View)
+      td.when(FakeView.prototype.look(ins.direction)).thenReturn(' ')
 
-      let oldDirection = bouncingCritter.direction
-      let newDirection = bouncingCritter.act(view).direction
+      let view = new FakeView('Whatever', 'Whatever')
+
+      let oldDirection = ins.direction
+      let newDirection = ins.act(view).direction
       expect(newDirection).to.be.equal(oldDirection)
     })
   })
