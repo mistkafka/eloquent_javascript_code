@@ -14,12 +14,6 @@ describe('class Grid', () => {
     })
   })
 
-  describe('# toString()', () => {
-    it('should toString() get instance info', () => {
-      expect(grid.toString()).to.be.equal(`[object class Grid(width=${width}, height=${height})]`)
-    })
-  })
-
   describe('# isInside', () => {
     it('vector with negative should be outside', () => {
       let v = new Vector(-1, height - 1)

@@ -32,8 +32,16 @@ class Grid {
     this[_spaces][index] = value
   }
 
-  get [Symbol.toStringTag] () {
-    return `class Grid(width=${this[_width]}, height=${this[_height]})`
+  *[Symbol.iterator] () {
+    for (let y = 0; y < this[_height]; y++) {
+      for (let x = 0; x < this[_width]; x++) {
+        let index = x + this[_width] * y
+        yield {
+          el: this[_spaces][index],
+          vector: new Vector(x, y),
+        }
+      }
+    }
   }
 }
 
