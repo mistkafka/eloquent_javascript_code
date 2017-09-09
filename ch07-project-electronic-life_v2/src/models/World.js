@@ -31,7 +31,7 @@ class World {
 
   turn () {
     let actedEls = []
-    for (let [el, vector] of this.grid) {
+    for (let {el, vector} of this.grid) {
       if (!el.act) {
         continue
       }
@@ -60,7 +60,7 @@ class World {
         if (!(this.grid.get(dest) instanceof Space)) {
           return
         }
-        this.grid.set(vector, new Space())
+        this.grid.set(vector, new Space(' '))
         this.grid.set(dest, el)
         break
     }

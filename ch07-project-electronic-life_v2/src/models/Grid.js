@@ -1,3 +1,4 @@
+import Vector from './Vector'
 const _width = Symbol('width')
 const _height = Symbol('height')
 const _spaces = Symbol('spaces')
