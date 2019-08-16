@@ -10,12 +10,11 @@ import {
 const REG_EXP = {
     VALUE_STRING: /^"([^"])"/,
     VALUE_NUMBER: /^\d+/,
-    WORD: /[a-zA-Z$_][a-zA-Z0-9$_-]*/
+    WORD: /^[^\s(),"]+/
 };
 
 
 export function parse(program: string): Express {
-    debugger;
     const ast = parseExpression(program);
     if (skipSpace(ast.restProgram).length > 0) {
         throw new SyntaxError('Undepected text after program');
@@ -31,10 +30,12 @@ function parseApply(expr: Express, program): ASTNode {
             expr,
             restProgram: program
         }
+    } else {
+        // (exp1 exp2 exp3)
     }
 
     if (expr.type !== 'word') {
-        throw SyntaxError('only word express can be apply name');
+        throw new SyntaxError('only word express can be apply name');
     }
     program = skipSpace(program.slice(1));
     const applyExpr: ApplyExpress = {
