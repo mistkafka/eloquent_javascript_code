@@ -189,6 +189,7 @@ specialForms['fun'] = function(args, env) {
 const topEnv = Object.create(null);
 topEnv['true'] = true;
 topEnv['false'] = false;
+topEnv['null'] = null;
 ['+', '-', '*', '/', '%', '==', '<', '>'].forEach((op) => {
   topEnv[op] = new Function('a, b', 'return a ' + op + ' b;');
 });
@@ -242,6 +243,32 @@ topEnv['clearImmediate'] = function (task) {
     return true;
   }
 };
+
+const prototypeRef = Symbol('prototype-ref');
+topEnv['objectCreate'] = function (prototype) {
+  const obj = {};
+  obj[prototypeRef] = prototype;
+
+  return obj;
+};
+topEnv['objectGet'] = function (obj, key) {
+  let head = obj;
+
+  while (head !== null) {
+    if (head[key]) {
+      return head[key];
+    } else {
+      head = obj[prototypeRef];
+    }
+  }
+
+  return null;
+};
+topEnv['objectSet'] = function (obj, key, val) {
+  obj[key] = val;
+};
+
+
 
 function sleep(second) {
   return new Promise((resolve, reject) => {
@@ -343,3 +370,19 @@ run(
   )
   `
 );
+
+// support object and prototype chain
+run(`
+  do(
+    define(anim, objectCreate(null)),
+    objectSet(anim, "weight", 10),
+    print(objectGet(anim, "weight")),
+
+    define(cat, objectCreate(anim)),
+    print(objectGet(cat, "weight")),
+
+    objectSet(cat, "weight", 3),
+    print(objectGet(cat, "weight")),
+    print(objectGet(anim, "weight"))
+  )
+`);
