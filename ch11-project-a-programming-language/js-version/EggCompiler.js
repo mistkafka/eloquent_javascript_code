@@ -96,7 +96,8 @@ function evaluate(expr, env) {
 
 let specialForms = Object.create(null);
 let unreadyAsyncTaskCount = 0;
-const TASK_QUEUE = [];
+const MAJOR_TASK_QUEUE = [];
+const MICRO_TASK_QUEUE = [];
 
 // the if just like 'condition ? trueToDo : falseToDo'
 specialForms['if'] = function(args, env) {
@@ -208,7 +209,7 @@ topEnv['setTimeout'] = function (callback, ms) {
   unreadyAsyncTaskCount = unreadyAsyncTaskCount + 1;
   return setTimeout(() => {
     unreadyAsyncTaskCount = unreadyAsyncTaskCount - 1;
-    TASK_QUEUE.push(callback);
+    MAJOR_TASK_QUEUE.push(callback);
   }, ms);
 };
 topEnv['clearTimeout'] = function(timer) {
@@ -218,12 +219,28 @@ topEnv['clearTimeout'] = function(timer) {
 topEnv['setInterval'] = function(callback, interval) {
   unreadyAsyncTaskCount = unreadyAsyncTaskCount + 1;
   return setInterval(() => {
-    TASK_QUEUE.push(callback);
+    MAJOR_TASK_QUEUE.push(callback);
   }, interval);
 };
 topEnv['clearInterval'] = function (timer) {
   unreadyAsyncTaskCount = unreadyAsyncTaskCount - 1;
   clearInterval(timer);
+};
+topEnv['setImmediate'] = function (callback) {
+  const task = () => callback();
+  MICRO_TASK_QUEUE.push(task);
+
+  return task;
+};
+topEnv['clearImmediate'] = function (task) {
+  const index = MICRO_TASK_QUEUE.findIndex(item => item === task);
+  if (index === -1) {
+    return false;
+  } else {
+    const backElements = MICRO_TASK_QUEUE.splice(index);
+    backElements.slice(1).forEach(item => MICRO_TASK_QUEUE.push(item));
+    return true;
+  }
 };
 
 function sleep(second) {
@@ -236,11 +253,14 @@ async function run(...args) {
   let env = Object.create(topEnv);
   let program = args.join('\n');
 
-  TASK_QUEUE.push(() => evaluate(parse(program), env));
+  MAJOR_TASK_QUEUE.push(() => evaluate(parse(program), env));
 
-  while (TASK_QUEUE.length > 0 || unreadyAsyncTaskCount > 0) {
-    if (TASK_QUEUE.length) {
-      const task = TASK_QUEUE.shift();
+  while (MICRO_TASK_QUEUE.length > 0 || MAJOR_TASK_QUEUE.length > 0 || unreadyAsyncTaskCount > 0) {
+    if (MICRO_TASK_QUEUE.length > 0) {
+      const task = MICRO_TASK_QUEUE.shift();
+      task();
+    } else if (MAJOR_TASK_QUEUE.length) {
+      const task = MAJOR_TASK_QUEUE.shift();
       task();
     } else {
       await sleep(0.1);
@@ -307,6 +327,19 @@ run(
       )
     )),
     set(timer, setInterval(cb, 1000))
+  )
+  `
+);
+
+// support micro task queue
+run(
+  `
+  do(
+    define(majorCb, fun(print("major callback"))),
+    define(microCb, fun(print("micro callback"))),
+    setTimeout(majorCb, 0),
+    setImmediate(microCb, 0),
+    print("sync print")
   )
   `
 );
