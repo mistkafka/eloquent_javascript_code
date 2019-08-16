@@ -34,8 +34,8 @@ function skipSpace(str) {
   return noPreSpace;
 }
 
-function parseApply(expr, program) {
-  program = skipSpace(program);
+function parseApply(expr, originProgram) {
+  let program = skipSpace(originProgram);
   if (program[0] != '(' ) {
     return {expr: expr, rest: program};
   }
@@ -50,6 +50,7 @@ function parseApply(expr, program) {
     if (program[0] == ',') {
       program = skipSpace(program.slice(1));
     } else if (program[0] != ')') {
+      console.log(originProgram);
       throw new SyntaxError('Expected \',\' or \')\'');
     }
   }
@@ -94,6 +95,8 @@ function evaluate(expr, env) {
 }
 
 let specialForms = Object.create(null);
+let unreadyAsyncTaskCount = 0;
+const TASK_QUEUE = [];
 
 // the if just like 'condition ? trueToDo : falseToDo'
 specialForms['if'] = function(args, env) {
@@ -201,44 +204,79 @@ topEnv['length'] = function(arr) {
 topEnv['element'] = function(arr, nth) {
   return arr[nth];
 };
+topEnv['setTimeout'] = function (callback, ms) {
+  unreadyAsyncTaskCount = unreadyAsyncTaskCount + 1;
+  return setTimeout(() => {
+    unreadyAsyncTaskCount = unreadyAsyncTaskCount - 1;
+    TASK_QUEUE.push(callback);
+  }, ms);
+};
+topEnv['clearTimeout'] = function(timer) {
+  unreadyAsyncTaskCount = unreadyAsyncTaskCount - 1;
+  clearTimeout(timer)
+};
+topEnv['setInterval'] = function(callback, interval) {
+  unreadyAsyncTaskCount = unreadyAsyncTaskCount + 1;
+  return setInterval(() => {
+    TASK_QUEUE.push(callback);
+  }, interval);
+};
+topEnv['clearInterval'] = function (timer) {
+  unreadyAsyncTaskCount = unreadyAsyncTaskCount - 1;
+  clearInterval(timer);
+};
 
-
-function run() {
-  let env = Object.create(topEnv);
-  let program = Array.prototype.slice.call(arguments, 0).join('\n');
-  return evaluate(parse(program), env);
+function sleep(second) {
+  return new Promise((resolve, reject) => {
+    setTimeout(resolve, second * 1000);
+  });
 }
 
-/*run('do(define(total, 0), ',
-    '   define(count, 1), ',
-    '   while(<(count, 11),',
-    '         do(define(total, +(total, count)),',
-    '            define(count, +(count, 1)))),',
-    '   print(total))'
-   );
-*/
+async function run(...args) {
+  let env = Object.create(topEnv);
+  let program = args.join('\n');
 
-//  run(
-//    'do(define(plusOne, fun(a, +(a, 1))),',
-//    '   print(plusOne(10)))'
-//  );
-//
-//  run(
-//    'do(define(pow, fun(base, exp,',
-//    '        if(==(exp, 0),',
-//    '                    1,',
-//    '                    *(base, pow(base, -(exp, 1)))))),',
-//    '   print(pow(2, 10)))'
-//  );
-//
-//  run(
-//    'do(define(arr, array(1, 3, 5, 7, 9)), define(p, fun(arr, index, while(<(index, length(arr)), do(print(element(arr, index)), define(index, +(index, 1))) ))), p(arr, 0))'
-//  );
+  TASK_QUEUE.push(() => evaluate(parse(program), env));
 
-//  run(
-//    'do(define(f, fun(a, fun(b, +(a, b)))),',
-//    'print(f(4)(5))) //this is comment'
-//  );
+  while (TASK_QUEUE.length > 0 || unreadyAsyncTaskCount > 0) {
+    if (TASK_QUEUE.length) {
+      const task = TASK_QUEUE.shift();
+      task();
+    } else {
+      await sleep(0.1);
+    }
+  }
+}
+
+run('do(define(total, 0), ',
+  '   define(count, 1), ',
+  '   while(<(count, 11),',
+  '         do(define(total, +(total, count)),',
+  '            define(count, +(count, 1)))),',
+  '   print(total))'
+);
+
+run(
+  'do(define(plusOne, fun(a, +(a, 1))),',
+  '   print(plusOne(10)))'
+);
+
+run(
+  'do(define(pow, fun(base, exp,',
+  '        if(==(exp, 0),',
+  '                    1,',
+  '                    *(base, pow(base, -(exp, 1)))))),',
+  '   print(pow(2, 10)))'
+);
+
+run(
+  'do(define(arr, array(1, 3, 5, 7, 9)), define(p, fun(arr, index, while(<(index, length(arr)), do(print(element(arr, index)), define(index, +(index, 1))) ))), p(arr, 0))'
+);
+
+run(
+  'do(define(f, fun(a, fun(b, +(a, b)))),',
+  'print(f(4)(5))) //this is comment'
+);
 
 // scope bug
 run(
@@ -248,4 +286,27 @@ run(
 // fix scope bugs, use set
 run(
   'do(define(a, 0), define(f, fun(set(a, 7))), f(), print(a))'
+);
+
+
+// support async api
+run(
+  'do(define(cb, fun(print("async print"))), setTimeout(cb, 1000), print("sync print"))'
+);
+
+run(
+  `
+  do(
+    define(timer, 0),
+    define(count, 0),
+    define(cb, fun(
+      do(
+        print(count),
+        set(count, +(count, 1)),
+        if(>(count, 11), clearInterval(timer), true)
+      )
+    )),
+    set(timer, setInterval(cb, 1000))
+  )
+  `
 );
