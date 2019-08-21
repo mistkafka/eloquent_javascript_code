@@ -88,9 +88,9 @@ function evaluate(expr, env) {
       throw new TypeError('Applying a non-function');
     }
 
-    return op.apply(null, expr.args.map((arg) => {
-      return evaluate(arg, env);
-    }));
+    const context = topEnv;
+    const args = expr.args.map(arg => evaluate(arg, env));
+    return op.apply(null, [context, ...args]);
   }
 }
 
@@ -143,7 +143,7 @@ specialForms['define'] = function(args, env) {
   return value;
 };
 
-specialForms['set'] = function(args, env){
+specialForms['set'] = function(args, env) {
   if (args.length != 2 || args[0].type != 'word') {
     throw new SyntaxError('Bad use of define');
   }
@@ -173,11 +173,12 @@ specialForms['fun'] = function(args, env) {
   });
   let body = args[args.length - 1];
 
-  return function(...args) {
+  return function(context, ...args) {
     if (args.length != argNames.length) {
       throw new TypeError('Wrong number of arguments');
     }
     let localEnv = Object.create(env);
+    localEnv['this'] = context;
     for (var i = 0; i < args.length; i++) {
       localEnv[argNames[i]] = args[i];
     }
@@ -191,49 +192,49 @@ topEnv['true'] = true;
 topEnv['false'] = false;
 topEnv['null'] = null;
 ['+', '-', '*', '/', '%', '==', '<', '>'].forEach((op) => {
-  topEnv[op] = new Function('a, b', 'return a ' + op + ' b;');
+  topEnv[op] = new Function('ctx, a, b', 'return a ' + op + ' b;');
 });
-topEnv['print'] = function(value) {
+topEnv['print'] = function(ctx, value) {
   console.log(value);
   return value;
 }
-topEnv['array'] = function(...args) {
+topEnv['array'] = function(ctx, ...args) {
   return [...args];
 };
-topEnv['length'] = function(arr) {
+topEnv['length'] = function(ctx, arr) {
   return arr.length;
 };
-topEnv['element'] = function(arr, nth) {
+topEnv['element'] = function(ctx, arr, nth) {
   return arr[nth];
 };
-topEnv['setTimeout'] = function (callback, ms) {
+topEnv['setTimeout'] = function (ctx, callback, ms) {
   unreadyAsyncTaskCount = unreadyAsyncTaskCount + 1;
   return setTimeout(() => {
     unreadyAsyncTaskCount = unreadyAsyncTaskCount - 1;
     MAJOR_TASK_QUEUE.push(callback);
   }, ms);
 };
-topEnv['clearTimeout'] = function(timer) {
+topEnv['clearTimeout'] = function(ctx, timer) {
   unreadyAsyncTaskCount = unreadyAsyncTaskCount - 1;
   clearTimeout(timer)
 };
-topEnv['setInterval'] = function(callback, interval) {
+topEnv['setInterval'] = function(ctx, callback, interval) {
   unreadyAsyncTaskCount = unreadyAsyncTaskCount + 1;
   return setInterval(() => {
     MAJOR_TASK_QUEUE.push(callback);
   }, interval);
 };
-topEnv['clearInterval'] = function (timer) {
+topEnv['clearInterval'] = function (ctx, timer) {
   unreadyAsyncTaskCount = unreadyAsyncTaskCount - 1;
   clearInterval(timer);
 };
-topEnv['setImmediate'] = function (callback) {
+topEnv['setImmediate'] = function (ctx, callback) {
   const task = () => callback();
   MICRO_TASK_QUEUE.push(task);
 
   return task;
 };
-topEnv['clearImmediate'] = function (task) {
+topEnv['clearImmediate'] = function (ctx, task) {
   const index = MICRO_TASK_QUEUE.findIndex(item => item === task);
   if (index === -1) {
     return false;
@@ -245,13 +246,13 @@ topEnv['clearImmediate'] = function (task) {
 };
 
 const prototypeRef = Symbol('prototype-ref');
-topEnv['objectCreate'] = function (prototype) {
+topEnv['objectCreate'] = function (ctx, prototype) {
   const obj = {};
   obj[prototypeRef] = prototype;
 
   return obj;
 };
-topEnv['objectGet'] = function (obj, key) {
+topEnv['objectGet'] = function (ctx, obj, key) {
   let head = obj;
 
   while (head !== null) {
@@ -264,8 +265,22 @@ topEnv['objectGet'] = function (obj, key) {
 
   return null;
 };
-topEnv['objectSet'] = function (obj, key, val) {
+topEnv['objectSet'] = function (ctx, obj, key, val) {
   obj[key] = val;
+};
+
+topEnv['bind'] = function (ctx, fn, context) {
+  return function (_, ...args) {
+    return fn(context, ...args);
+  }
+};
+
+// js里面的 a.f() 其实是两个过程，getter跟apply，并且这两个过程对开发者而言是一个过程。
+// 这里根本没有办法通过objectGet来实现a.f()， objectGet相当于js里的 `a.f`。
+// 所以，这里通过objectGetApply，来实现a.f()这样的操作
+topEnv['objectGetApply'] = function (ctx, obj, key, ...args) {
+  const fn = obj[key];
+  return fn(obj, ...args);
 };
 
 
