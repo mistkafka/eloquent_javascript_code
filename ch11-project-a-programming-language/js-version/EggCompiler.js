@@ -22,16 +22,7 @@ function skipSpace(str) {
   let first = str.search(/\S/);
   if (first == -1) return '';
 
-  // 有bug，程序在放入解析前，已经被合并成一行了！如果用
-  // 行注释，会直接把后面的非注释代码也给注释了。
-  // 好一点的支持注释的方法不应该在skipSpace()里面做
-  let noPreSpace = str.slice(first);
-  let commentIndex = noPreSpace.search('//');
-  if (commentIndex == 0) {
-    return '';
-  }
-
-  return noPreSpace;
+  return str.slice(first);
 }
 
 function parseApply(expr, originProgram) {
@@ -98,6 +89,7 @@ let specialForms = Object.create(null);
 let unreadyAsyncTaskCount = 0;
 const MAJOR_TASK_QUEUE = [];
 const MICRO_TASK_QUEUE = [];
+
 
 // the if just like 'condition ? trueToDo : falseToDo'
 specialForms['if'] = function(args, env) {
@@ -194,10 +186,10 @@ topEnv['null'] = null;
 ['+', '-', '*', '/', '%', '==', '<', '>'].forEach((op) => {
   topEnv[op] = new Function('ctx, a, b', 'return a ' + op + ' b;');
 });
-topEnv['print'] = function(ctx, value) {
+topEnv['print'] = function(ctx, value = "") {
   console.log(value);
   return value;
-}
+};
 topEnv['array'] = function(ctx, ...args) {
   return [...args];
 };
@@ -279,10 +271,41 @@ topEnv['bind'] = function (ctx, fn, context) {
 // 这里根本没有办法通过objectGet来实现a.f()， objectGet相当于js里的 `a.f`。
 // 所以，这里通过objectGetApply，来实现a.f()这样的操作
 topEnv['objectGetApply'] = function (ctx, obj, key, ...args) {
-  const fn = obj[key];
-  return fn(obj, ...args);
+    let fn = topEnv['objectGet'](null, obj, key)
+    if (fn === null) {
+        throw Error('undefined can not be apply');
+    }
+
+    return fn(obj, ...args);
 };
 
+topEnv['call'] = function(_, ctx, fn, ...args) {
+    return fn(ctx, ...args)
+}
+
+topEnv['new'] = function(ctx, constructor, ...args) {
+    const instance = {};
+    if (!constructor.prototype) {
+        constructor.prototype = {};
+    }
+    instance[prototypeRef] = constructor.prototype;
+    constructor(instance, ...args);
+
+    return instance;
+};
+
+topEnv['instanceof'] = function(ctx, ins, constructor) {
+  ins = ins[prototypeRef];
+  while (ins !== null) {
+    if (ins === constructor.prototype) {
+      return true;
+    } else {
+      ins = ins[prototypeRef];
+    }
+  }
+
+  return false;
+};
 
 
 function sleep(second) {
@@ -294,6 +317,14 @@ function sleep(second) {
 async function run(...args) {
   let env = Object.create(topEnv);
   let program = args.join('\n');
+  program = program.split('\n').map(line => {
+    const commentIndex = line.search('//');
+    if (commentIndex !== -1) {
+      return line.slice(0, commentIndex);
+    } else {
+      return line;
+    }
+  }).join('\n');
 
   MAJOR_TASK_QUEUE.push(() => evaluate(parse(program), env));
 

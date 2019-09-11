@@ -1,1 +1,0 @@
-const run = require('../EggCompiler');
