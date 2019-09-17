@@ -2,6 +2,7 @@
 ### TODO
 - [x] new, instanceof
 - [x] execute context: ~~bind/apply~~ call
-- [ ] promise
+- [ ] gc
 - [ ] generator
 - [ ] async/await
+- [ ] promise
