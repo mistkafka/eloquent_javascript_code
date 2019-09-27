@@ -403,3 +403,54 @@ function crazyNumbersG() {
 //    语句while语句与此同理。
 //
 //    具体实现代码见: EggCompiler.js
+
+
+
+
+
+// 现在，我们以及实现了generator，让我们来看看，如何从generator演变成async-await吧！
+//
+// 首先，让我们来看看用tj的co库（https://github.com/tj/co）写出来的例子：
+//
+// co(function* () {
+//   let n = 1;
+//   let a = yield Promise.resolve(n);
+//   console.log('first promise, complete');
+//
+//   let b = yield Promise.resolve(a + 1);
+//   console.log('second promise, complete');
+//
+//   let c = yield Promise.resolve(b + 1);
+//   console.log('third promise, complete');
+//
+//   console.log(a);
+//   console.log(b);
+//   console.log(c);
+// });
+//
+//
+// 它的效果是其实就是async-await关键字达到的效果。
+// 我觉得这是一个非常神奇的库！不知道它背后是不是通过重新编译代码的方式来实现？我觉得如果没有重新编排代码块（就像我们实现generator一样），就能做到这样的效果，实在是非常的神奇。
+//
+// 我们先不管它是如何实现的吧～ 先来思考我们要怎么在Egg language里实现async await。先来梳理下思路。
+//
+// 我最先想到的是，generator的本质是一个状态机，它可以产生一个序列。而序列，可以视为数组，这一下子让我想到
+// 自己之前把一个数组的异步操作（返回promise）依次链接起来让它们依次执行的例子，就像这样。
+//
+//   const asyncOperators = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => {
+//     return new Promise((resolve, reject) => {
+//       setTimeout(() => {
+//         console.log(i);
+//       }, 1000)
+//     });
+//   });
+//
+//   asyncOperators.reduce((prevP, curr) => {
+//     prevP = prevP.then(() => {
+//       return curr();
+//     });
+//     return prevP;
+//   }, Promise.resolve());
+//
+//
+//  这里是链接异步操作，而在我看来，async-await就是在链接异步代码块
