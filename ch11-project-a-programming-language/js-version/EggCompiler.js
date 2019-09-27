@@ -180,11 +180,6 @@ specialForms['fun'] = function(args, env) {
 };
 
 
-const GENERATOR_SPLITERS = [
-    'yield',
-    'while',
-    'if'
-]
 specialForms['gen'] = function (args, env) {
   if (!args.length) {
     throw new SyntaxError('Generator need a body');
@@ -203,7 +198,7 @@ specialForms['gen'] = function (args, env) {
     step: 0,
     toStep: 1,
     exprs: []
-  }
+  };
 
   let step = 0; // TODO: 把转换body的逻辑抽离到一个函数里，免得变量重复
   function archiveBlock() {
@@ -311,8 +306,9 @@ specialForms['gen'] = function (args, env) {
     return {
       next: function () {
 
-        while (true) {
-          debugger;
+        while (true) { // 进入一个死循环，直到执行到一句yield、或者程序结束为止。
+
+          // 代码块执行尾，generator执行完毕
           let currentBlock = blocks[step] || null;
           if (!currentBlock) {
             return {
@@ -321,14 +317,17 @@ specialForms['gen'] = function (args, env) {
             }
           }
 
+          // 先把step链接向下一个block，这样下面就可以放心return
           if (currentBlock.toStep instanceof Function) {
             step = currentBlock.toStep(localEnv);
           } else {
             step = currentBlock.toStep;
           }
+
           let exprs = currentBlock.exprs;
           let value = specialForms['do'](exprs, localEnv);
           let latestExpr = exprs[exprs.length - 1];
+          // 只有到代码块的最后一个表达式是yield（也就是说遇到了yield），才能return值
           if (latestExpr && latestExpr.type === 'apply' && latestExpr.operator.name === 'yield') {
             return {
               value,
