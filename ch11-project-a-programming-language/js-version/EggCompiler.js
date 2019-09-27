@@ -200,46 +200,109 @@ specialForms['gen'] = function (args, env) {
   // 拆分代码块，并且进行编号
   const blocks = [];
   let block = {
-    toStep: null,
+    step: 0,
+    toStep: 1,
     exprs: []
   }
-  body.args.forEach(expr => {
-    block.exprs.push(expr);
-    if (expr.type === 'apply' && expr.operator.name === 'yield') {
-      blocks.push(block);
-      block = {
-        toStep: null,
-        exprs: []
-      }
-    }
-  });
 
-  // 链接代码块
-  blocks.forEach((block, index) => {
-    block.toStep = index + 1; // 现在没有if、while的加入，状态转移很单一
-  })
+  let step = 0; // TODO: 把转换body的逻辑抽离到一个函数里，免得变量重复
+  function archiveBlock() {
+    blocks.push(block);
+    step = step + 1;
+    block = {
+      step: step,
+      toStep: step + 1,
+      exprs: []
+    }
+  }
+
+  function dealBodyExpr(expr) {
+    if (expr.type === 'apply') {
+      switch (expr.operator.name) {
+        case 'do':
+          walkBodyExpr(expr);
+          break;
+
+        case 'if':
+          archiveBlock();
+
+          const ifBlock = block;
+          archiveBlock();
+
+          dealBodyExpr(expr.args[1])
+          const lastBlockInTrueBlock = block;
+          archiveBlock();
+          const falseBlockStartAt = step;
+
+          dealBodyExpr(expr.args[2])
+          archiveBlock();
+          const ifBlockEndAt = step;
+          lastBlockInTrueBlock.toStep = ifBlockEndAt;
+
+          ifBlock.toStep = (env) => {
+            const cond = evaluate(expr.args[0], env);
+            if (cond) {
+              return ifBlock.step + 1;
+            } else {
+              return falseBlockStartAt;
+            }
+          }
+
+          break;
+
+        case 'yield':
+          block.exprs.push(expr);
+          archiveBlock();
+          break;
+
+        default:
+          block.exprs.push(expr);
+      }
+    } else {
+      block.exprs.push(expr);
+    }
+  }
+
+  function walkBodyExpr(bodyExpr) {
+    bodyExpr.args.forEach(dealBodyExpr);
+  }
+  walkBodyExpr(body);
 
   return function (context, ...args) {
     let localEnv = Object.create(env);
     localEnv['this'] = context;
+    for (var i = 0; i < args.length; i++) {
+      localEnv[argNames[i]] = args[i];
+    }
+
     let step = 0; // 初始状态
     return {
       next: function () {
-        const currentBlock = blocks[step] || null;
-        if (!currentBlock) {
-          return {
-            value: undefined,
-            done: true
+
+        while (true) {
+          let currentBlock = blocks[step] || null;
+          if (!currentBlock) {
+            return {
+              value: undefined,
+              done: true
+            }
+          }
+
+          if (currentBlock.toStep instanceof Function) {
+            step = currentBlock.toStep(localEnv);
+          } else {
+            step = currentBlock.toStep;
+          }
+          let exprs = currentBlock.exprs;
+          let value = specialForms['do'](exprs, localEnv);
+          let latestExpr = exprs[exprs.length - 1];
+          if (latestExpr && latestExpr.type === 'apply' && latestExpr.operator.name === 'yield') {
+            return {
+              value,
+              done: false
+            };
           }
         }
-
-        step = currentBlock.toStep;
-        const value = specialForms['do'](currentBlock.exprs, localEnv);
-
-        return {
-          value,
-          done: false
-        };
       }
     }
   }

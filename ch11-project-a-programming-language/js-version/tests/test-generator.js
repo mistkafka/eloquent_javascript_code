@@ -34,3 +34,39 @@ run(
   )
   `
 );
+
+
+// 带有if语句
+run(
+  `do(
+    define(numberGenerator, gen(
+      n,
+
+      do(
+        set(n, +(n, 1)),
+        if(>(n, 10),
+          yield(n),
+          do(
+            set(n, +(n, 10)),
+            yield(n),
+            set(n, -(n, 10))
+          )
+        ),
+
+        set(n, +(n, 3)),
+        if(==(0, %(n, 2)),
+            yield(n),
+            yield(+(n, 1))
+        )
+      )
+    )),
+
+    define(aGen, numberGenerator(3)),
+    print(objectGetApply(aGen, "next")),
+    print(objectGetApply(aGen, "next")),
+    print(objectGetApply(aGen, "next")),
+    print(objectGetApply(aGen, "next")),
+    print(objectGetApply(aGen, "next")),
+    print(objectGetApply(aGen, "next")),
+  )`
+)
