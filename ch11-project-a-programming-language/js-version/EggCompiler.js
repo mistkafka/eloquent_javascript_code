@@ -224,21 +224,30 @@ specialForms['gen'] = function (args, env) {
           break;
 
         case 'if':
-          archiveBlock();
+          archiveBlock(); // if语句前面的代码，自己归为一块
 
           const ifBlock = block;
-          archiveBlock();
+          archiveBlock(); // if语句的判断条件自己归为一块，判断代码后面再填充
 
-          dealBodyExpr(expr.args[1])
+          // 给条件为真的代码分块、编号
+          // 得到最后这段代码里的最后一个block，后面需要将它重定向
+          dealBodyExpr(expr.args[1]);
           const lastBlockInTrueBlock = block;
           archiveBlock();
-          const falseBlockStartAt = step;
 
-          dealBodyExpr(expr.args[2])
+          // 记录条件为假的代码中的第一个代码块编号，等会处理if语句需要用到
+          const falseBlockStartAt = step;
+          dealBodyExpr(expr.args[2]);
           archiveBlock();
+
+          // 把lastBlockInTrueBlock重定向到整个if语句的下一块代码块
+          // 这样，条件为真的代码执行完之后，就不会去执行条件为假的代码
           const ifBlockEndAt = step;
           lastBlockInTrueBlock.toStep = ifBlockEndAt;
 
+          // 处理if语句的判断条件这个block
+          // 通过构建一个运行时执行的语句，动态的去确认要链接到
+          // 为真的代码块，还是为假的代码块
           ifBlock.toStep = (env) => {
             const cond = evaluate(expr.args[0], env);
             if (cond) {
@@ -246,7 +255,30 @@ specialForms['gen'] = function (args, env) {
             } else {
               return falseBlockStartAt;
             }
-          }
+          };
+
+          break;
+
+        case 'while':
+          archiveBlock();
+
+          const whileBlock = block;
+          archiveBlock();
+
+          dealBodyExpr(expr.args[1]);
+          const lastBlockInWhileBody = block;
+          archiveBlock();
+
+          lastBlockInWhileBody.toStep = whileBlock.step;
+          const whileBlockEndAt = step;
+          whileBlock.toStep = (env) => {
+            const cond = evaluate(expr.args[0], env);
+            if (cond) {
+              return whileBlock.step + 1;
+            } else {
+              return whileBlockEndAt;
+            }
+          };
 
           break;
 
@@ -280,6 +312,7 @@ specialForms['gen'] = function (args, env) {
       next: function () {
 
         while (true) {
+          debugger;
           let currentBlock = blocks[step] || null;
           if (!currentBlock) {
             return {
