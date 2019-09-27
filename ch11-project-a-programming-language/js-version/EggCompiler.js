@@ -97,7 +97,7 @@ specialForms['if'] = function(args, env) {
     throw new SyntaxError('Bad number of args to if');
   }
 
-  if (evaluate(args[0], env) !== false){
+  if (evaluate(args[0], env) !== false) {
     return evaluate(args[1], env);
   } else {
     return evaluate(args[2], env);
@@ -178,6 +178,76 @@ specialForms['fun'] = function(args, env) {
     return evaluate(body, localEnv);
   };
 };
+
+
+const GENERATOR_SPLITERS = [
+    'yield',
+    'while',
+    'if'
+]
+specialForms['gen'] = function (args, env) {
+  if (!args.length) {
+    throw new SyntaxError('Generator need a body');
+  }
+
+  let argNames = args.slice(0, args.length - 1).map((expr) => {
+    if (expr.type != 'word') {
+      throw new SyntaxError('Arg names must be words');
+    }
+    return expr.name;
+  });
+  let body = args[args.length - 1];
+  // 拆分代码块，并且进行编号
+  const blocks = [];
+  let block = {
+    toStep: null,
+    exprs: []
+  }
+  body.args.forEach(expr => {
+    block.exprs.push(expr);
+    if (expr.type === 'apply' && expr.operator.name === 'yield') {
+      blocks.push(block);
+      block = {
+        toStep: null,
+        exprs: []
+      }
+    }
+  });
+
+  // 链接代码块
+  blocks.forEach((block, index) => {
+    block.toStep = index + 1; // 现在没有if、while的加入，状态转移很单一
+  })
+
+  return function (context, ...args) {
+    let localEnv = Object.create(env);
+    localEnv['this'] = context;
+    let step = 0; // 初始状态
+    return {
+      next: function () {
+        const currentBlock = blocks[step] || null;
+        if (!currentBlock) {
+          return {
+            value: undefined,
+            done: true
+          }
+        }
+
+        step = currentBlock.toStep;
+        const value = specialForms['do'](currentBlock.exprs, localEnv);
+
+        return {
+          value,
+          done: false
+        };
+      }
+    }
+  }
+}
+
+specialForms['yield'] = function (args, env) {
+    return evaluate(args[0], env);
+}
 
 const topEnv = Object.create(null);
 topEnv['true'] = true;

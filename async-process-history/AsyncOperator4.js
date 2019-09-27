@@ -137,21 +137,6 @@ MyPromise.all = function (promises) {
     });
 }
 
-MyPromise.all = function (promises) {
-    let pendingCount = promises.length;
-    let datas = new Array(pendingCount);
-    return new MyPromise((resolve, reject) => {
-        promises.forEach((promise, index) => {
-            promise.then(val => {
-                datas[index] = val;
-                pendingCount = pendingCount - 1;
-                if (pendingCount === 0) {
-                    resolve(datas);
-                }
-            }).catch(err => reject(err));
-        });
-    });
-}
 MyPromise.race = function (promises) {
     return new MyPromise((resolve, reject) => {
         promises.forEach((promise, index) => {
